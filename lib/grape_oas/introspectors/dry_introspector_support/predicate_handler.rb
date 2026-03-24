@@ -83,15 +83,7 @@ module GrapeOAS
           return if rng.begin && !rng.begin.is_a?(Numeric)
           return if rng.end && !rng.end.is_a?(Numeric)
 
-          apply_range_constraints(rng)
-        end
-
-        def apply_range_constraints(rng)
-          return unless rng
-
-          constraints.minimum = rng.begin if rng.begin
-          constraints.maximum = rng.end if rng.end
-          constraints.exclusive_maximum = rng.exclude_end? if rng.end
+          RangeUtils.apply_numeric_range(constraints, rng)
         end
 
         def apply_excluded_from_list(args)
@@ -135,7 +127,7 @@ module GrapeOAS
 
         def handle_range(args)
           rng = ArgumentExtractor.extract_range(args.first)
-          apply_range_constraints(rng)
+          RangeUtils.apply_numeric_range(constraints, rng) if rng
         end
 
         def handle_multiple_of(args)
