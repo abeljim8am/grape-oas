@@ -165,7 +165,19 @@ module GrapeOAS
 
         def apply_exposure_properties(schema, doc)
           schema.nullable = doc[:nullable] || doc["nullable"] || false
-          schema.enum = doc[:values] || doc["values"] if doc[:values] || doc["values"]
+          raw_values = doc[:values] || doc["values"]
+          if raw_values
+            normalized = ValuesNormalizer.normalize(raw_values, context: "entity exposure values")
+            # Entity exposures do not support oneOf/array-items dispatch.
+            # Values are applied directly to the schema. If the entity field is a
+            # nullable oneOf type, values will be applied to the wrapper schema,
+            # not the individual variants. This is consistent with original behavior.
+            if normalized.is_a?(Array) && !normalized.empty?
+              schema.enum = normalized
+            elsif normalized.is_a?(Range)
+              RangeUtils.apply_to_schema(schema, normalized)
+            end
+          end
           schema.description = doc[:desc] || doc["desc"] if doc[:desc] || doc["desc"]
           schema.format = doc[:format] || doc["format"] if doc[:format] || doc["format"]
           schema.examples = doc[:example] || doc["example"] if schema.respond_to?(:examples=) && (doc[:example] || doc["example"])
