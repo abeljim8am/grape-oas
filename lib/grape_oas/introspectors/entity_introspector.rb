@@ -88,10 +88,14 @@ module GrapeOAS
       def initialize_or_reuse_schema
         @registry[@entity_class] ||= ApiModel::Schema.new(
           type: Constants::SchemaTypes::OBJECT,
-          canonical_name: @entity_class.name,
+          canonical_name: resolve_canonical_name,
           description: nil,
           nullable: nil,
         )
+      end
+
+      def resolve_canonical_name
+        EntityIntrospectorSupport.resolve_canonical_name(@entity_class)
       end
 
       def populate_schema(schema)
