@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.4.0] - 2026-04-23
 
 ### Fixed
 
@@ -16,13 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [#61](https://github.com/numbata/grape-oas/pull/61): Respect `entity_name` on `grape::entity` subclasses - [@olivier-thatch](https://github.com/olivier-thatch).
 - [#68](https://github.com/numbata/grape-oas/pull/68): De-duplicate parameter `description` between the Parameter Object and its nested `schema` in OAS 3 output - [@olivier-thatch](https://github.com/olivier-thatch).
 - [#70](https://github.com/numbata/grape-oas/pull/70): Propagate schema attributes (`default`, `enum`, constraints, extensions) through `$ref` and composition paths - [@numbata](https://github.com/numbata).
-- Your contribution here
 
 ### Changed
 
 - [#64](https://github.com/numbata/grape-oas/pull/64): Memoize content-type and default-format resolution per generation — eliminates redundant calls that scaled with route × response count - [@JuniorJoanis](https://github.com/JuniorJoanis).
 - [#62](https://github.com/numbata/grape-oas/pull/62): Default to body params for post/put/patch routes - [@olivier-thatch](https://github.com/olivier-thatch).
-- Your contribution here
 
 ## [1.3.0] - 2026-03-27
 
