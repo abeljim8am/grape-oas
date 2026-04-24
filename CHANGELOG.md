@@ -7,10 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+* Add configurable `GrapeOAS.schema_ref_name` callable that controls how a schema's canonical class name is mangled into its OAS component/definition ref name. Default behavior (`name.gsub("::", "_")`) is byte-identical to prior output; applies uniformly across OAS 2.0 and OAS 3 ref emission paths.
+* Add configurable `GrapeOAS.entity_exposure_required_default` (default `true`) that controls whether entity exposures without an explicit `documentation: { required: ... }` key are marked required. Default behavior is byte-identical to prior output; setting it to `false` opts out so only explicitly-required exposures end up in the `required` array. Conditional exposures and explicit `required:` values are unaffected.
+* Entity exposures whose declared type is a class that is neither a `Grape::Entity` nor a known primitive now consult `GrapeOAS.type_resolvers` before falling back to `{ type: "string" }`. Apps can register a custom `TypeResolvers::Base` implementation to supply a richer schema (e.g. UUID, Dry::Types wrappers, app-specific value objects) for entity exposures, mirroring the first-match-wins semantics already used for request parameters.
+
 ### Fixed
 
 * Substitute the concrete path version into route templates when a route is mounted with `version "...", using: :path`. Previously the literal `{version}` placeholder leaked into the generated spec; now the version value is inlined (e.g. `/v1/items`). Routes without a concrete Grape version are unaffected.
-* Your contribution here
+* Honor `is_array: true` on the plain-entity response branch so a route declaring `entity:` + `is_array: true` (without `using:`, `as:`, or `one_of:`) emits an array schema wrapping the entity `$ref` instead of a bare `$ref`.
+* Omit the `content` key entirely on `204 No Content` responses. Previously the generated spec synthesized an empty-schema media type (and kept the `content` object even when no body was declared), contradicting HTTP semantics and tripping spec validators. An explicitly declared entity on a `204` response is now also dropped so the emitted object is just `{ "description": "..." }`. Non-204 bodyless responses are untouched.
+* Fix `SchemaIndexer#index_schema` to recurse into `schema.items` so entities reachable only through an array wrapper (e.g. a property declared as `Array<OtherEntity>`) are included in the indexed schemas set.
 
 ### Changed
 

@@ -46,6 +46,29 @@ module GrapeOAS
   # Used by the default logger and the test capture helper.
   LOG_FORMATTER = proc { |_severity, _datetime, _progname, msg| "[grape-oas] #{msg}\n" }
 
+  # Default mapping from a schema's canonical class name to its OAS component/definition ref name.
+  # Replaces Ruby's `::` module separator with `_` so ref names are valid across tooling that rejects colons.
+  DEFAULT_SCHEMA_REF_NAME = ->(name) { name.gsub("::", "_") }
+
+  # Configurable callable that derives the OAS component/definition ref name
+  # from a schema's canonical class name. Applied to every `$ref` target and
+  # every component/definition key so custom mangling stays consistent.
+  #
+  # @return [#call(String) -> String]
+  def schema_ref_name
+    @schema_ref_name ||= DEFAULT_SCHEMA_REF_NAME
+  end
+
+  # @param value [#call, nil] a callable receiving the canonical name,
+  #   or nil to reset to the default mangler
+  def schema_ref_name=(value)
+    raise ArgumentError, "schema_ref_name must respond to :call (got #{value.class})" if value && !value.respond_to?(:call)
+
+    @schema_ref_name = value
+  end
+
+  module_function :schema_ref_name, :schema_ref_name=
+
   # Configurable logger for schema generation warnings.
   # Defaults to Logger on $stderr. Set to Rails.logger or Logger.new(File::NULL).
   #
@@ -67,6 +90,30 @@ module GrapeOAS
   end
 
   module_function :logger, :logger=
+
+  # Whether entity exposures without an explicit `required:` documentation key
+  # default to required. When `true` (default), unconditional exposures are
+  # marked required — byte-identical to prior output. When `false`, they are
+  # omitted from `required` unless `documentation: { required: true }` is set.
+  # Conditional exposures and explicit `required:` values are unaffected.
+  #
+  # @return [Boolean]
+  def entity_exposure_required_default
+    return true if @entity_exposure_required_default.nil?
+
+    @entity_exposure_required_default
+  end
+
+  # @param value [true, false, nil] `nil` resets to the default (`true`)
+  def entity_exposure_required_default=(value)
+    unless value.nil? || value == true || value == false
+      raise ArgumentError, "entity_exposure_required_default must be true, false, or nil (got #{value.class})"
+    end
+
+    @entity_exposure_required_default = value
+  end
+
+  module_function :entity_exposure_required_default, :entity_exposure_required_default=
 
   # Returns the global introspector registry.
   #
