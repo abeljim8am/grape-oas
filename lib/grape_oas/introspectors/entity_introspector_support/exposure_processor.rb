@@ -200,7 +200,6 @@ module GrapeOAS
         end
 
         def apply_exposure_properties(schema, doc)
-          schema.nullable = doc[:nullable] || false
           raw_values = doc[:values]
           if raw_values
             normalized = ValuesNormalizer.normalize(raw_values, context: "entity exposure values")
@@ -210,6 +209,10 @@ module GrapeOAS
               RangeUtils.apply_to_schema(schema, normalized)
             end
           end
+
+          schema = dup_cached_schema_for_overrides(schema, doc)
+
+          schema.nullable = doc[:nullable] || false
           schema.description = doc[:desc] if doc[:desc]
           schema.format = doc[:format] if doc[:format]
           schema.examples = doc[:example] if schema.respond_to?(:examples=) && doc[:example]
@@ -220,6 +223,48 @@ module GrapeOAS
           x_ext = extract_extensions(doc)
           schema.extensions = x_ext if x_ext && schema.respond_to?(:extensions=)
           schema
+        end
+
+        # Cached entity schemas (via using:) are shared across all exposures that
+        # reference the same entity. When per-exposure overrides (description,
+        # format, examples, etc.) would change the shared schema, dup it first so
+        # each exposure sees its own copy. Clears canonical_name on the dup so the
+        # SchemaIndexer doesn't pick up a per-exposure dup as the canonical
+        # component for that name (it dedupes by canonical_name on first sight).
+        # The dup is emitted inline and the original cached schema remains the
+        # canonical component referenced by overrideless `$ref` uses.
+        #
+        # @return [ApiModel::Schema] the schema or a dup with canonical_name cleared
+        def dup_cached_schema_for_overrides(schema, doc)
+          return schema unless schema.respond_to?(:canonical_name) && schema.canonical_name
+          return schema unless per_exposure_overrides?(schema, doc)
+
+          GrapeOAS.logger.warn(
+            "Duplicating cached schema '#{schema.canonical_name}' to apply per-exposure overrides",
+          )
+          duped = schema.dup
+          duped.canonical_name = nil
+          duped
+        end
+
+        # Returns true when any per-exposure override in `doc` would mutate the
+        # cached schema. Compares against the schema's current state so identical
+        # overrides don't trigger a needless dup.
+        def per_exposure_overrides?(schema, doc)
+          return true unless schema.nullable == (doc[:nullable] || false)
+          return true if doc[:desc] && schema.description != doc[:desc]
+          return true if doc[:format] && schema.format != doc[:format]
+          return true if doc[:example] && schema.respond_to?(:examples=) && schema.examples != doc[:example]
+          return true if doc.key?(:additional_properties) && schema.additional_properties != doc[:additional_properties]
+          return true if doc.key?(:unevaluated_properties) && schema.unevaluated_properties != doc[:unevaluated_properties]
+
+          defs = doc[:defs] || doc[:$defs]
+          return true if defs.is_a?(Hash) && schema.defs != defs
+
+          x_ext = extract_extensions(doc)
+          return true if x_ext && schema.respond_to?(:extensions=) && schema.extensions != x_ext
+
+          false
         end
 
         # Cached entity schemas (via using:) are shared across all exposures that

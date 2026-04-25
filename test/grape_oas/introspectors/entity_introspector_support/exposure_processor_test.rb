@@ -215,6 +215,87 @@ module GrapeOAS
           assert_equal %w[a b], items.enum
         end
       end
+
+      # Per-exposure overrides (description, format, examples, etc.) on a cached
+      # entity schema must dup before mutating so siblings don't clobber each
+      # other. The dup clears canonical_name so the SchemaIndexer doesn't pick up
+      # a per-exposure dup as the canonical component for that ref name.
+      class ExposureProcessorApplyOverridesTest < Minitest::Test
+        # Shared id-reference entity used as `using:` in two sibling exposures.
+        class IdRefEntity < Grape::Entity
+          expose :id, documentation: { type: Integer }
+        end
+
+        class TwoRefsEntity < Grape::Entity
+          expose :primary, using: IdRefEntity, documentation: { desc: "Primary contact." }
+          expose :secondary, using: IdRefEntity, documentation: { desc: "Secondary contact." }
+        end
+
+        def test_per_exposure_descriptions_do_not_clobber_each_other
+          schema = nil
+          capture_grape_oas_log do
+            schema = EntityIntrospector.new(TwoRefsEntity).build_schema
+          end
+
+          primary = schema.properties["primary"]
+          secondary = schema.properties["secondary"]
+
+          assert_equal "Primary contact.", primary.description
+          assert_equal "Secondary contact.", secondary.description
+          refute_same primary, secondary,
+                      "each exposure must get its own dup of the cached entity schema"
+        end
+
+        def test_per_exposure_dup_clears_canonical_name
+          schema = nil
+          capture_grape_oas_log do
+            schema = EntityIntrospector.new(TwoRefsEntity).build_schema
+          end
+
+          primary = schema.properties["primary"]
+
+          assert_nil primary.canonical_name,
+                     "dup must clear canonical_name so SchemaIndexer doesn't index it as the canonical component"
+        end
+
+        def test_per_exposure_overrides_emit_warning
+          log = capture_grape_oas_log do
+            EntityIntrospector.new(TwoRefsEntity).build_schema
+          end
+
+          assert_includes log, "Duplicating cached schema"
+          assert_includes log, "IdRefEntity"
+          assert_includes log, "per-exposure overrides"
+        end
+
+        # Without a per-exposure override there's nothing to clobber, so no dup
+        # should be performed.
+        class NoOverrideEntity < Grape::Entity
+          expose :ref, using: IdRefEntity
+        end
+
+        def test_no_override_skips_dup
+          log = capture_grape_oas_log do
+            EntityIntrospector.new(NoOverrideEntity).build_schema
+          end
+
+          refute_includes log, "Duplicating cached schema"
+        end
+
+        # An override that already matches the schema's current state shouldn't
+        # trigger a dup either.
+        class IdenticalOverrideEntity < Grape::Entity
+          expose :ref, using: IdRefEntity, documentation: { nullable: false }
+        end
+
+        def test_identical_override_skips_dup
+          log = capture_grape_oas_log do
+            EntityIntrospector.new(IdenticalOverrideEntity).build_schema
+          end
+
+          refute_includes log, "Duplicating cached schema"
+        end
+      end
     end
   end
 end

@@ -115,11 +115,13 @@ module GrapeOAS
         assert_equal "object", settings_schema.type
         # The key assertion: settings should have the SettingsEntity's properties,
         # not be an empty object due to type: "object" taking precedence
-        assert_equal "GrapeOAS::Introspectors::EntityIntrospectorTest::SettingsEntity", settings_schema.canonical_name
         assert_includes settings_schema.properties.keys, "enabled"
         assert_includes settings_schema.properties.keys, "mode"
         # Description from documentation should still be applied
         assert_equal "The settings", settings_schema.description
+        # canonical_name is cleared on the dup so the SchemaIndexer doesn't pick
+        # up this per-exposure copy as the canonical component for the entity.
+        assert_nil settings_schema.canonical_name
       end
 
       # === Recursive/self-referential entity tests ===
