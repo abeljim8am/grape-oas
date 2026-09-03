@@ -85,6 +85,47 @@ module GrapeOAS
                      "204 response must not synthesize media types (no body per HTTP semantics)"
       end
 
+      def test_default_response_key_is_preserved
+        api_class = Class.new(Grape::API) do
+          format :json
+          desc "Get item", documentation: { responses: { default: { description: "Fallback" } } }
+          get "items/:id" do
+            {}
+          end
+        end
+
+        route = api_class.routes.first
+        builder = Response.new(api: @api, route: route)
+        responses = builder.build
+
+        fallback = responses.find { |r| r.http_status == "default" }
+
+        refute_nil fallback, "Should preserve the OpenAPI default response key"
+        assert_equal "Fallback", fallback.description
+      end
+
+      def test_205_reset_content_response_has_no_media_types
+        api_class = Class.new(Grape::API) do
+          format :json
+          desc "Reset form",
+               success: { code: 205, message: "Reset Content", model: ResponseEdgeCasesTest::ItemEntity }
+          post "items/:id" do
+            status 205
+          end
+        end
+
+        route = api_class.routes.first
+        builder = Response.new(api: @api, route: route)
+        responses = builder.build
+
+        reset_content = responses.find { |r| r.http_status == "205" }
+
+        refute_nil reset_content, "Should have 205 response"
+        assert_equal "Reset Content", reset_content.description
+        assert_empty reset_content.media_types,
+                     "205 response must not carry a body (RFC 9110)"
+      end
+
       def test_204_drops_explicitly_declared_entity
         api_class = Class.new(Grape::API) do
           format :json

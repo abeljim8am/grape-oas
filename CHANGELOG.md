@@ -28,9 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [#87](https://github.com/numbata/grape-oas/pull/87): Fix `SchemaIndexer#index_schema` to recurse into `schema.items` so entities reachable only through an array wrapper (e.g. a property declared as `Array<OtherEntity>`) are included in the indexed schemas set - [@abeljim8am](https://github.com/abeljim8am).
 - [#102](https://github.com/numbata/grape-oas/pull/102): Fix: nullable entity ref must not mutate shared cached schema - [@bogdan](https://github.com/bogdan).
 - [#105](https://github.com/numbata/grape-oas/pull/105): Place array-valued `example` on the array schema instead of `items` for entity `is_array:` exposures without mutating shared entity schemas - [@olivier-thatch](https://github.com/olivier-thatch).
+- [#86](https://github.com/numbata/grape-oas/pull/86): Omit response content for bodyless HTTP statuses (`1xx`, `204`, `205`, `304`), including declared entities and examples, so generated OpenAPI responses remain valid - [@abeljim8am](https://github.com/abeljim8am).
 * Your contribution here
-- [#86](https://github.com/numbata/grape-oas/pull/86): Omit body-related keys on bodyless responses (`204`, `1xx`, `304`, per RFC 9110). Previously the generated spec synthesized an empty-schema media type (and kept the `content` object even when no body was declared), contradicting HTTP semantics and tripping spec validators. An explicitly declared entity and response-level `examples` on these statuses are now dropped so the emitted object is just `{ "description": "..." }` (plus headers/extensions). Other bodyless responses are untouched - [@abeljim8am](https://github.com/abeljim8am).
-- Your contribution here
 
 ### Changed
 

@@ -66,7 +66,7 @@ module GrapeOAS
       # any regular specs in the group (this branch only runs when no `as:` entries exist)
       def build_response_from_group(group_specs)
         first_spec = group_specs.first
-        return build_response_without_content(first_spec) if no_content_status?(first_spec[:code])
+        return build_response_without_content(first_spec) if bodyless_status?(first_spec[:code])
 
         has_one_of = group_specs.any? { |s| s[:one_of] && !s[:one_of].empty? }
         has_as = group_specs.any? { |s| !s[:as].nil? }
@@ -216,10 +216,10 @@ module GrapeOAS
         )
       end
 
-      # RFC 9110 §6.4.1: 1xx, 204, and 304 responses never carry a message body.
-      def no_content_status?(code)
-        status = code.to_i
-        status.between?(100, 199) || status == 204 || status == 304
+      # RFC 9110 §6.4.1 and §15.3.6: these responses never carry a message body.
+      def bodyless_status?(code)
+        status = code.to_s.to_i
+        status.between?(100, 199) || status == 204 || status == 205 || status == 304
       end
 
       def array_schema(schema)
