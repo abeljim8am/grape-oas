@@ -254,6 +254,40 @@ module GrapeOAS
         assert_equal ["/api/public/v1/items"], @api.paths.map(&:template)
       end
 
+      def test_substitutes_path_version_in_mounted_api
+        inner = Class.new(Grape::API) do
+          prefix :api
+          version "v1", using: :path
+          get("items/:id") { [] }
+        end
+        outer = Class.new(Grape::API) do
+          mount inner => "/svc/:tenant"
+        end
+
+        Path.new(api: @api, routes: outer.routes).build
+
+        path = @api.paths.first
+
+        assert_equal "/svc/{tenant}/api/v1/items/{id}", path.template
+        assert_equal %w[id tenant], path.operations.first.parameters.map(&:name).sort
+      end
+
+      def test_namespace_filter_uses_concrete_version_in_mounted_api
+        inner = Class.new(Grape::API) do
+          prefix :api
+          version "v1", using: :path
+          get("items") { [] }
+          get("posts") { [] }
+        end
+        outer = Class.new(Grape::API) do
+          mount inner => "/svc"
+        end
+
+        Path.new(api: @api, routes: outer.routes, namespace_filter: "svc/api/v1/items").build
+
+        assert_equal ["/svc/api/v1/items"], @api.paths.map(&:template)
+      end
+
       def test_header_versioning_preserves_leading_user_version_parameter
         api_class = Class.new(Grape::API) do
           version "v1", using: :header, vendor: "test"

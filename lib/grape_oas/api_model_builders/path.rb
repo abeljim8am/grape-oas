@@ -108,10 +108,7 @@ module GrapeOAS
         concrete_version = concrete_path_version(route) if route
         return sanitized unless concrete_version
 
-        segments = sanitized.split("/", -1)
-        version_index = route.prefix.to_s.split("/").count { |segment| !segment.empty? } + 1
-        segments[version_index] = concrete_version if segments[version_index] == "{version}"
-        segments.join("/")
+        sanitized.sub("{version}", concrete_version)
       end
 
       def concrete_path_version(route)
