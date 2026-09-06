@@ -108,6 +108,7 @@ module GrapeOAS
         concrete_version = concrete_path_version(route) if route
         return sanitized unless concrete_version
 
+        # Path versioning owns {version}; Grape rejects duplicate capture names.
         sanitized.sub("{version}", concrete_version)
       end
 
