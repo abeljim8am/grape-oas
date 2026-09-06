@@ -203,11 +203,83 @@ module GrapeOAS
       end
 
       def test_blank_version_does_not_replace_version_placeholder
-        builder = Path.new(api: @api, routes: [])
+        api_class = Class.new(Grape::API) do
+          version "", using: :path
+          get("items") { [] }
+        end
 
-        sanitized = builder.send(:sanitize_path, "/:version/items", version: "")
+        Path.new(api: @api, routes: api_class.routes).build
 
-        assert_equal "/{version}/items", sanitized
+        assert_equal "/{version}/items", @api.paths.first.template
+      end
+
+      def test_multiple_versions_preserve_version_placeholder
+        api_class = Class.new(Grape::API) do
+          version %w[v1 v2], using: :path
+          get("items") { [] }
+        end
+
+        Path.new(api: @api, routes: api_class.routes).build
+
+        assert_equal "/{version}/items", @api.paths.first.template
+        parameter = @api.paths.first.operations.first.parameters.find { |param| param.name == "version" }
+
+        assert_equal "path", parameter.location
+        assert parameter.required
+      end
+
+      def test_substitutes_path_version_after_prefix
+        api_class = Class.new(Grape::API) do
+          prefix :api
+          version "v1", using: :path
+          get("items/:id") { [] }
+        end
+
+        Path.new(api: @api, routes: api_class.routes).build
+
+        assert_equal "/api/v1/items/{id}", @api.paths.first.template
+        assert_equal ["id"], @api.paths.first.operations.first.parameters.map(&:name)
+      end
+
+      def test_namespace_filter_uses_concrete_version_after_nested_prefix
+        api_class = Class.new(Grape::API) do
+          prefix "api/public"
+          version "v1", using: :path
+          get("items") { [] }
+          get("posts") { [] }
+        end
+
+        Path.new(api: @api, routes: api_class.routes, namespace_filter: "api/public/v1/items").build
+
+        assert_equal ["/api/public/v1/items"], @api.paths.map(&:template)
+      end
+
+      def test_header_versioning_preserves_leading_user_version_parameter
+        api_class = Class.new(Grape::API) do
+          version "v1", using: :header, vendor: "test"
+          get(":version/items") { [] }
+        end
+
+        Path.new(api: @api, routes: api_class.routes).build
+
+        assert_equal "/{version}/items", @api.paths.first.template
+        parameter = @api.paths.first.operations.first.parameters.find { |param| param.name == "version" }
+
+        assert_equal "path", parameter.location
+        assert parameter.required
+      end
+
+      def test_header_versioning_preserves_user_version_parameter_after_prefix
+        api_class = Class.new(Grape::API) do
+          prefix :api
+          version "v1", using: :header, vendor: "test"
+          get(":version/items") { [] }
+        end
+
+        Path.new(api: @api, routes: api_class.routes).build
+
+        assert_equal "/api/{version}/items", @api.paths.first.template
+        assert_equal ["version"], @api.paths.first.operations.first.parameters.map(&:name)
       end
 
       # === Namespace filtering tests ===

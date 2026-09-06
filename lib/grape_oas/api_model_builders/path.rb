@@ -33,7 +33,7 @@ module GrapeOAS
         @routes.each_with_object({}) do |route, api_routes|
           next if skip_route?(route)
 
-          route_path = sanitize_path(route.path, version: route.version)
+          route_path = sanitize_path(route.path, route: route)
           normalized = normalize_template(route_path)
 
           canonical_info = canonical_paths[normalized]
@@ -84,7 +84,7 @@ module GrapeOAS
       def filtered_by_namespace?(route)
         return false unless namespace_filter
 
-        route_path = sanitize_path(route.path, version: route.version)
+        route_path = sanitize_path(route.path, route: route)
         namespace_prefix = namespace_filter.start_with?("/") ? namespace_filter : "/#{namespace_filter}"
 
         # Match exact namespace or namespace followed by / or {
@@ -100,23 +100,24 @@ module GrapeOAS
           .build
       end
 
-      def sanitize_path(path, version: nil)
+      def sanitize_path(path, route: nil)
         sanitized = path.gsub(EXTENSION_PATTERN, "") # Remove format extensions like (.json)
                         .gsub(WILDCARD_PARAMETER_PATTERN, "{\\k<param>}") # Replace *param / /?*param with {param}
                         .gsub(PATH_PARAMETER_PATTERN, "{\\k<param>}") # Replace :param with {param}
 
-        concrete_version = concrete_path_version(version)
-        sanitized = sanitized.sub("{version}", concrete_version) if concrete_version && path_version_segment?(path)
+        concrete_version = concrete_path_version(route) if route
+        return sanitized unless concrete_version
 
-        sanitized
+        segments = sanitized.split("/", -1)
+        version_index = route.prefix.to_s.split("/").count { |segment| !segment.empty? } + 1
+        segments[version_index] = concrete_version if segments[version_index] == "{version}"
+        segments.join("/")
       end
 
-      def path_version_segment?(path)
-        path.start_with?("/:version/", "/:version(") || path == "/:version"
-      end
+      def concrete_path_version(route)
+        return nil unless route.app.inheritable_setting.namespace_inheritable[:version_options]&.dig(:using) == :path
 
-      def concrete_path_version(version)
-        values = Array(version)
+        values = Array(route.version)
         return nil unless values.length == 1
 
         value = values.first.to_s
